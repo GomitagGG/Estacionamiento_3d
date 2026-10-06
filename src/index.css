@@ -24,7 +24,9 @@ canvas {
   left: 16px;
   bottom: 14px;
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
+  max-width: calc(100% - 280px);
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -39,4 +41,224 @@ canvas {
 
 .hud .off {
   color: #64748b;
+}
+
+/* ---------- mando · visualizador ---------- */
+
+.pad {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  width: 232px;
+  padding: 10px 12px 12px;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: rgba(2, 6, 13, 0.82);
+  color: #cbd5f5;
+  font-size: 11px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pad-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+}
+
+.pad-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: #475569;
+}
+
+.pad-dot.on {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.pad-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #facc15;
+}
+
+.pad-hint {
+  margin: 0;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.pad-hint b {
+  color: #e2e8f0;
+}
+
+.pad-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.pad-grid {
+  display: grid;
+  grid-template-columns: 58px 1fr 58px;
+  grid-template-areas:
+    'dpad mid abxy'
+    'ls ax rs';
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0 6px;
+}
+
+.pad-key,
+.pad-round,
+.pad-trg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #64748b;
+  transition: background 0.06s, color 0.06s;
+}
+
+.pad-key {
+  flex: 1;
+  height: 19px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pad-round {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pad-key.on,
+.pad-round.on {
+  border-color: #facc15;
+  background: #facc15;
+  color: #0a0e16;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+
+.pad-trg {
+  position: relative;
+  flex: 1;
+  height: 17px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.pad-trg b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #facc15;
+  opacity: 0.75;
+}
+
+.pad-trg span {
+  position: relative;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.pad-dpad,
+.pad-abxy {
+  display: grid;
+  grid-template-columns: repeat(3, 19px);
+  grid-template-rows: repeat(3, 19px);
+  gap: 0;
+}
+
+.pad-dpad {
+  grid-area: dpad;
+  justify-self: start;
+}
+
+.pad-abxy {
+  grid-area: abxy;
+  justify-self: end;
+}
+
+.pad-mid {
+  grid-area: mid;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
+
+.pad-mid em {
+  color: #64748b;
+  font-size: 9px;
+  font-style: normal;
+  text-align: center;
+}
+
+.pad-stick {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #334155;
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+.pad-stick::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1px;
+  background: #1e293b;
+}
+
+.pad-stick::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 1px;
+  background: #1e293b;
+}
+
+.pad-stick i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+}
+
+.pad-ls {
+  grid-area: ls;
+}
+
+.pad-rs {
+  grid-area: rs;
+  justify-self: end;
+}
+
+.pad-ax {
+  grid-area: ax;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 5px;
+  justify-content: center;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  font-size: 9px;
 }

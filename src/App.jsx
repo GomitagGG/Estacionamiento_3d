@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { pad, useGamepad } from './gamepad.js'
+import PadOverlay from './PadOverlay.jsx'
 
 // Subsuelo -2: garaje de hormigón, entrada recta al mismo nivel que la calle
 const ROOM_W = 40
@@ -1495,16 +1497,43 @@ function Player({ onLockChange, onHud }) {
     let warn = ''
     let kmh = 0
 
+    // el mando repite lo que hacen E y V, y su stick derecho mueve la cámara
+    if (pad.use) {
+      act.current.use = true
+      pad.use = false
+    }
+    if (pad.cam) {
+      act.current.cam = true
+      pad.cam = false
+    }
+    if (pad.lookX || pad.lookY) {
+      if (d.car) {
+        d.off.yaw = clamp(d.off.yaw - pad.lookX * dt * 2.6, -2.6, 2.6)
+        d.off.pitch = clamp(d.off.pitch - pad.lookY * dt * 2.6, -0.8, 0.9)
+      } else {
+        look.current.yaw -= pad.lookX * dt * 2.6
+        look.current.pitch = Math.max(-1.2, Math.min(1.2, look.current.pitch - pad.lookY * dt * 2.6))
+      }
+    }
+
     if (!d.car) {
       /* ---- a pie ---- */
-      const speed = k.has('ShiftLeft') || k.has('ShiftRight') ? 6.5 : 3.4
+      const speed = k.has('ShiftLeft') || k.has('ShiftRight') || pad.run ? 6.5 : 3.4
+      // teclado y mando se suman y luego se normalizan: el analógico conserva
+      // la intensidad y solo se recorta cuando se pide más de lo que hay
       const forward =
-        Number(k.has('KeyW') || k.has('ArrowUp')) - Number(k.has('KeyS') || k.has('ArrowDown'))
+        Number(k.has('KeyW') || k.has('ArrowUp')) -
+        Number(k.has('KeyS') || k.has('ArrowDown')) +
+        pad.moveY +
+        pad.throttle
       const strafe =
-        Number(k.has('KeyD') || k.has('ArrowRight')) - Number(k.has('KeyA') || k.has('ArrowLeft'))
-      const len = Math.hypot(forward, strafe) || 1
-      const f = forward / len
-      const s = strafe / len
+        Number(k.has('KeyD') || k.has('ArrowRight')) -
+        Number(k.has('KeyA') || k.has('ArrowLeft')) +
+        pad.moveX
+      const len = Math.hypot(forward, strafe)
+      const norm = len > 1 ? 1 / len : 1
+      const f = forward * norm
+      const s = strafe * norm
       const { yaw, pitch } = look.current
       const sin = Math.sin(yaw)
       const cos = Math.cos(yaw)
@@ -1534,7 +1563,7 @@ function Player({ onLockChange, onHud }) {
         }
       }
       if (near) {
-        prompt = `E · conducir el auto ${near.id}`
+        prompt = `${pad.connected ? 'A' : 'E'} · conducir el auto ${near.id}`
         if (act.current.use) {
           d.car = near
           near.driven = true
@@ -1552,17 +1581,26 @@ function Player({ onLockChange, onHud }) {
     } else {
       /* ---- conduciendo ---- */
       const car = d.car
-      const fwd = k.has('KeyW') || k.has('ArrowUp')
-      const back = k.has('KeyS') || k.has('ArrowDown')
-      const lft = k.has('KeyA') || k.has('ArrowLeft')
-      const rgt = k.has('KeyD') || k.has('ArrowRight')
+      // gas y volante analógicos: el stick y los gatillos suman con el teclado
+      const gas = clamp(
+        Number(k.has('KeyW') || k.has('ArrowUp')) - Number(k.has('KeyS') || k.has('ArrowDown')) + pad.throttle,
+        -1,
+        1,
+      )
+      const wheel = clamp(
+        Number(k.has('KeyA') || k.has('ArrowLeft')) -
+          Number(k.has('KeyD') || k.has('ArrowRight')) -
+          pad.moveX,
+        -1,
+        1,
+      )
       let v = car.v
-      if (fwd) v += (v < 0 ? 13 : 5.5) * dt
-      else if (back) v -= (v > 0.3 ? 13 : 3.8) * dt
+      if (gas > 0.02) v += (v < 0 ? 13 : 5.5) * gas * dt
+      else if (gas < -0.02) v -= (v > 0.3 ? 13 : 3.8) * -gas * dt
       else v -= Math.sign(v) * Math.min(Math.abs(v), 1.8 * dt)
-      if (k.has('Space')) v -= Math.sign(v) * Math.min(Math.abs(v), 16 * dt)
+      if (k.has('Space') || pad.handbrake) v -= Math.sign(v) * Math.min(Math.abs(v), 16 * dt)
       v = clamp(v, -4.5, 15)
-      const target = (((lft ? 1 : 0) - (rgt ? 1 : 0)) * 0.62) / (1 + Math.abs(v) * 0.09)
+      const target = (wheel * 0.62) / (1 + Math.abs(v) * 0.09)
       d.steer += (target - d.steer) * Math.min(1, dt * 7)
       car.steer = d.steer
       car.h += (v / 2.7) * Math.tan(d.steer) * dt
@@ -1593,7 +1631,7 @@ function Player({ onLockChange, onHud }) {
         say(out ? 'Saliste del estacionamiento' : 'Entraste al estacionamiento')
       }
       const at = slotAt(car.x, car.z)
-      if (at && kmh < 4) prompt = `Espacio ${slotLabel(at[0], at[1])} · S retroceder para salir · E bajar`
+      if (at && kmh < 4) prompt = `Espacio ${slotLabel(at[0], at[1])} · S retroceder para salir · ${pad.connected ? 'A' : 'E'} bajar`
 
       PLAYER.x = car.x
       PLAYER.z = car.z
@@ -1732,6 +1770,7 @@ const HUD_BASE = {
 export default function App() {
   const handleLockChange = useCallback(() => {}, [])
   const [hud, setHud] = useState({ driving: false, kmh: 0, prompt: '', warn: '', toast: '', cam: 0 })
+  const padState = useGamepad()
 
   useEffect(() => {
     const block = (e) => e.preventDefault()
@@ -1754,7 +1793,25 @@ export default function App() {
         <Scene onLockChange={handleLockChange} onHud={setHud} />
       </Canvas>
       <div className="hud">
-        {hud.driving ? (
+        {padState.connected ? (
+          hud.driving ? (
+            <>
+              <span>Stick izq / D-pad girar</span>
+              <span>RT acelerar · LT frenar</span>
+              <span>B freno de mano</span>
+              <span>Y cámara ({hud.cam ? '1ª persona' : '3ª persona'})</span>
+              <span>A bajar</span>
+            </>
+          ) : (
+            <>
+              <span>Stick izq mover</span>
+              <span>LB correr</span>
+              <span>RT / LT adelante / atrás</span>
+              <span>Stick der. mirar</span>
+              <span>A conducir un auto</span>
+            </>
+          )
+        ) : hud.driving ? (
           <>
             <span>W / S acelerar · frenar</span>
             <span>A / D girar</span>
@@ -1771,6 +1828,7 @@ export default function App() {
           </>
         )}
       </div>
+      <PadOverlay state={padState} />
       {hud.toast && (
         <div style={{ ...HUD_BASE, top: 28, color: '#e2e8f0', border: '1px solid #38bdf8', fontSize: 20 }}>{hud.toast}</div>
       )}
